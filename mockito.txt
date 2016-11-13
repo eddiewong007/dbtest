@@ -1,0 +1,130 @@
+Stub:
+形象说法，把所需的测试数据塞进对象中。基于状态的测试，关注的输入和输出。
+对于static 和 final方法，Mockito无法对其when(...) thenReturn(...)操作
+
+Usages of Mockito
+
+1. Verifying Behavior
+
+一旦创建Mock将会记得所有的交互，可以选择验证你感兴趣的任何交互。
+Mockito can ensure whether a mock method is being called with required arguments or not.
+
+//verify(mockedList).add("one");
+
+为什么要用到verify呢？
+
+如果我mock了某个方法，肯定是为了调用啊。两个用例：
+用例2 比用例1多了一个mock步骤，不过最后的输出是一样的。
+// 需求： 单单通过结果来判断正确与否还是不够的，还要判断是否按我指定的路径执行的用例。
+
+
+2.Stubbing
+LinkedList mockedList = mock(LinkedList.class);
+//stubbing
+when(mockedList.get(0)).thenReturn("frist");
+when(mockedList.get(1)).thenThrow(new RuntimeException());
+
+System.out.println(mockedList.get(0));
+System.out.println(mockedList.get(1));
+System.out.println(mockedList.get(999));
+
+默认情况下，所有方法都会返回值。一个Mock将会返回要么 null，一个原始/基本类型的包装值或者适当的空集。例如一个int/Integer就是0，对于boolean/Boolean就是false.
+Stubbing可以覆盖。
+
+3. 参数匹配器
+4. Check the number of calls
+verify(mockedList).add("once");
+verify(mockedList, times(1)).add("once"); // times(1) is default paramer of verify
+verify(mockedList, never()).add("never happened");
+verify(mockedList, atLeastOnce()).add("three times");
+verify(mockedList, atMost(5)).add("three times");
+
+还可以自定义参数匹配器 
+------------------
+// 自定义参数匹配是匹配size大小为2的List
+class IsListOfTwoElements extends ArgumentMatcher<List> {  
+    public boolean matches(Object list) {  
+        return ((List) list).size() == 2;  
+    }  
+}  
+  
+@Test  
+public void argumentMatchersTest(){  
+    List mock = mock(List.class);  
+    when(mock.addAll(argThat(new IsListOfTwoElements()))).thenReturn(true);  
+       
+    mock.addAll(Arrays.asList("one", "two", "three"));  
+    verify(mock).addAll(argThat(new IsListOfTwoElements()));  
+}
+----------------
+自定义参数匹配器需要继承ArgumentMatcher抽象类，只需实现matches方法在其中的定义规则即可
+argThat(Matcher<T> matcher)方法用来应用自定义的规则，可以传入任何实现Matcher接口的实现类。
+
+5. Stubbing void Exception
+doThrow(new RuntimeException()).when(mockedList).clear();
+mockedList.clear();
+
+6. Sequence Verify
+
+7. 迭代
+when(mock.someMethod("some arg"))
+ .thenThrow(new RuntimeException())
+ .thenReturn("foo");
+
+//First call: throws runtime exception:
+mock.someMethod("some arg");
+
+//Second call: prints "foo"
+System.out.println(mock.someMethod("some arg"));
+
+//Any consecutive call: prints "foo" as well (last stubbing wins).
+System.out.println(mock.someMethod("some arg"));
+
+下面是一个精简版本：
+
+when(mock.someMethod("some arg"))
+ .thenReturn("one", "two", "three");
+
+
+8. 回调
+想让测试方法不写死，返回实际结果并让我们可以获取到的，how?
+时我们需要自定义方法执行的返回结果，Answer 接口就是满足这样的需求而存在的。
+
+例如模拟常见的 request.getAttribute(key)，由于这本来是个接口，所以连内部实现都要自己写了。此次通过 Answer 接口获取参数内容。
+
+[java] view plain copy
+final Map<String, Object> hash = new HashMap<String, Object>();  
+Answer<String> aswser = new Answer<String>() {    
+    public String answer(InvocationOnMock invocation) {    
+        Object[] args = invocation.getArguments();    
+        return hash.get(args[0].toString()).toString();    
+    }   
+};  
+  
+when(request.getAttribute("isRawOutput")).thenReturn(true);   
+when(request.getAttribute("errMsg")).thenAnswer(aswser);   
+when(request.getAttribute("msg")).thenAnswer(aswser);  
+利用 InvocationOnMock 提供的方法可以获取 mock 方法的调用信息。下面是它提供的方法：
+
+getArguments() 调用后会以 Object 数组的方式返回 mock 方法调用的参数。
+getMethod() 返回 java.lang.reflect.Method 对象
+getMock() 返回 mock 对象
+callRealMethod() 真实方法调用，如果 mock 的是接口它将会抛出异常
+void 方法可以获取参数，只是写法上有区别，
+
+[java] view plain copy
+doAnswer(new Answer<Object>() {  
+    public Object answer(InvocationOnMock invocation) {  
+        Object[] args = invocation.getArguments();  
+        // Object mock = invocation.getMock();    
+        System.out.println(args[1]);  
+        hash.put(args[0].toString(), args[1]);  
+        return "called with arguments: " + args;  
+    }  
+}).when(request).setAttribute(anyString(), anyString());  
+其实就是一个回调，——如果不是接口，是实现类的话，估计不用自己写实现。
+
+9. 
+
+
+依赖什么，模拟什么，让mockito为我们生成模拟的对象。
